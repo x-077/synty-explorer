@@ -1,0 +1,5 @@
+packages/*
+data/*
+!packages/.gitkeep
+!data/.gitkeep
+__pycache__/

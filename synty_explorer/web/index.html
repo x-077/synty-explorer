@@ -1,0 +1,464 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Synty Explorer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #e6eaf0; --panel: #ffffff; --ink: #1d2733; --muted: #5b6878; --line: #cdd4de;
+  --accent: #3346d3; --accent-ink: #ffffff; --ruler: #f2b632; --warn: #c2412d;
+  --cat-Prop:#4f8a5b; --cat-Building:#8a6a4f; --cat-Character:#3346d3; --cat-Weapon:#6b6f76;
+  --cat-Vehicle:#2f7c8c; --cat-Environment:#5d8a2f; --cat-Item:#9a5fa8; --cat-FX:#c2712d;
+  --cat-Attachment:#6c7fd8; --cat-Animation:#d0457a; --cat-Generic:#7a8594; --cat-Other:#7a8594; --cat-Sign:#a8833a; --cat-Icon:#7a8594;
+  font-family: Rubik, system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-variant-numeric: tabular-nums;
+  color-scheme: light dark;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg:#151b23; --panel:#1e2630; --ink:#e6ebf1; --muted:#9aa6b4; --line:#2e3946; --accent:#7184ff; --accent-ink:#0f1420; }
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); }
+:root { padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+body { display: grid; grid-template-columns: 260px 1fr; grid-template-rows: auto 1fr auto; height: 100%; }
+button, input, select { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+header { grid-column: 1 / -1; display: flex; align-items: center; gap: 16px; padding: 12px 20px; background: var(--panel); border-bottom: 1px solid var(--line); }
+header h1 { font-size: 18px; font-weight: 700; margin: 0; white-space: nowrap; }
+#q { flex: 1; max-width: 640px; padding: 9px 14px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); font-size: 15px; }
+#count { color: var(--muted); font-size: 14px; white-space: nowrap; }
+
+aside { overflow: auto; padding: 16px 16px 24px; border-right: 1px solid var(--line); }
+aside h2 { font-size: 13px; font-weight: 500; color: var(--muted); margin: 18px 0 8px; }
+aside h2:first-child { margin-top: 0; }
+.facet { display: flex; align-items: center; gap: 8px; width: 100%; padding: 5px 8px; border: 0; border-radius: 6px; background: none; text-align: left; cursor: pointer; font-size: 14px; }
+.facet:hover { background: var(--panel); }
+.facet[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
+.facet .n { margin-left: auto; color: inherit; opacity: .65; font-size: 12px; }
+.swatch { width: 10px; height: 10px; border-radius: 2px; flex: none; }
+.hint { font-size: 12px; color: var(--muted); line-height: 1.5; }
+.hint code { background: var(--panel); padding: 1px 4px; border-radius: 3px; }
+
+main { overflow: auto; padding: 16px 20px 40px; }
+#grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+.card { position: relative; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; cursor: pointer; text-align: left; padding: 0; display: flex; flex-direction: column; }
+.card:hover { border-color: var(--accent); }
+.thumb { aspect-ratio: 1; display: grid; place-items: center; background: color-mix(in srgb, var(--cat) 14%, var(--panel)); }
+.thumb img { width: 100%; height: 100%; object-fit: contain; }
+.thumb .glyph { font-size: 28px; font-weight: 700; color: var(--cat); opacity: .8; }
+.thumb .clip { display: grid; justify-items: center; gap: 4px; color: var(--cat); }
+.thumb .clip b { font-size: 22px; }
+.thumb .clip small { font-size: 12px; font-weight: 500; }
+.card .meta { padding: 8px 10px 10px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 2px; }
+.card .name { font-size: 13px; font-weight: 500; line-height: 1.25; overflow-wrap: anywhere; }
+.card .sub { font-size: 12px; color: var(--muted); display: flex; justify-content: space-between; gap: 6px; min-width: 0; }
+.card .sub span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.card .sub span:last-child { flex: none; }
+.card .pin { position: absolute; top: 6px; right: 6px; width: 26px; height: 26px; border-radius: 50%; border: 1px solid var(--line); background: var(--panel); cursor: pointer; font-size: 14px; line-height: 1; }
+.card .pin[aria-pressed="true"] { background: var(--ruler); border-color: var(--ruler); color: #1d2733; }
+#more { margin: 20px auto 0; display: block; padding: 8px 18px; border-radius: 8px; border: 1px solid var(--line); background: var(--panel); cursor: pointer; }
+.empty { padding: 60px 20px; text-align: center; color: var(--muted); }
+
+/* Lineup: the signature element */
+#lineup { grid-column: 1 / -1; background: var(--panel); border-top: 1px solid var(--line); }
+#lineup summary { padding: 10px 20px; cursor: pointer; font-weight: 500; font-size: 14px; display: flex; gap: 12px; align-items: center; }
+#lineup summary .tools { margin-left: auto; display: flex; gap: 8px; }
+#lineup summary button { border: 1px solid var(--line); background: none; border-radius: 6px; padding: 3px 10px; cursor: pointer; font-size: 13px; }
+#stage { position: relative; height: 260px; margin: 0 20px 16px; padding: 0 16px 0 64px; border-bottom: 2px solid var(--ink); display: flex; align-items: flex-end; gap: 18px; overflow-x: auto; overflow-y: hidden; }
+.mline { position: absolute; left: 0; right: 0; min-width: 100%; border-top: 1px dashed var(--line); pointer-events: none; }
+.mline span { position: absolute; left: 0; top: -8px; font-size: 11px; color: var(--muted); width: 40px; text-align: right; }
+.fig { position: relative; flex: none; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; z-index: 1; }
+.fig .bar { border-radius: 4px 4px 0 0; background: color-mix(in srgb, var(--cat) 75%, transparent); border: 1px solid var(--cat); }
+.fig.out .bar { outline: 2px solid var(--warn); outline-offset: 1px; }
+.fig .lbl { position: absolute; bottom: 100%; margin-bottom: 4px; font-size: 11px; text-align: center; white-space: nowrap; }
+.fig .lbl b { display: block; font-size: 12px; }
+.fig .x { position: absolute; top: 0; right: -8px; border: 0; background: none; cursor: pointer; color: var(--muted); }
+#lineupEmpty { padding: 0 20px 16px; color: var(--muted); font-size: 14px; }
+
+/* Detail drawer */
+dialog { width: min(920px, 94vw); max-height: 90vh; border: 1px solid var(--line); border-radius: 12px; padding: 0; background: var(--panel); color: var(--ink); }
+dialog::backdrop { background: rgb(10 15 25 / .45); }
+.dlg { display: grid; grid-template-columns: 1.4fr 1fr; min-height: 460px; }
+#viewer { position: relative; background: color-mix(in srgb, var(--ink) 6%, var(--panel)); min-height: 460px; }
+#viewer canvas { position: absolute; inset: 0; display: block; width: 100%; height: 100%; }
+#fsBtn { position: absolute; top: 10px; left: 10px; z-index: 2; background: var(--panel); font-size: 13px; padding: 5px 10px; }
+#viewer:fullscreen { background: var(--bg); }
+#legend { position: absolute; left: 130px; top: 16px; font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 6px; pointer-events: none; }
+#legend i { width: 10px; height: 14px; border-radius: 3px; background: #f2b632; opacity: .7; }
+#anim { position: absolute; left: 10px; right: 10px; bottom: 10px; z-index: 2; display: flex; gap: 8px; align-items: center; padding: 6px; border-radius: 8px; background: color-mix(in srgb, var(--panel) 88%, transparent); border: 1px solid var(--line); }
+#anim select { flex: 0 1 260px; min-width: 0; padding: 5px 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--panel); font-size: 13px; }
+#anim .btn { padding: 5px 12px; font-size: 13px; }
+#scrub { flex: 1; min-width: 60px; accent-color: var(--accent); }
+#inPlaceLbl { display: flex; gap: 4px; align-items: center; white-space: nowrap; }
+#animTime { font-size: 12px; color: var(--muted); white-space: nowrap; }
+#viewerMsg.note { place-items: end center; padding-bottom: 64px; font-size: 13px; }
+#viewerMsg { position: absolute; inset: 0; pointer-events: none; display: grid; place-items: center; text-align: center; padding: 24px; color: var(--muted); font-size: 14px; }
+.info { padding: 20px 22px; overflow: auto; }
+#info h3 { margin: 0 0 4px; padding-right: 52px; font-size: 20px; }
+.info .path { font-size: 12px; color: var(--muted); overflow-wrap: anywhere; margin-bottom: 14px; }
+.info dl { display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; font-size: 14px; margin: 0 0 16px; }
+.info dt { color: var(--muted); }
+.info dd { margin: 0; overflow-wrap: anywhere; }
+.row { display: flex; gap: 8px; flex-wrap: wrap; }
+.btn { padding: 8px 14px; border-radius: 8px; border: 1px solid var(--line); background: none; cursor: pointer; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.close { position: absolute; top: 10px; right: 12px; z-index: 2; }
+
+#drop { position: fixed; inset: 0; display: none; place-items: center; background: var(--bg); z-index: 5; text-align: center; padding: 24px; }
+#drop.on { display: grid; }
+#drop .box { max-width: 520px; border: 2px dashed var(--line); border-radius: 12px; padding: 40px; }
+
+@media (max-width: 760px) {
+  body { grid-template-columns: 1fr; grid-template-rows: auto auto 1fr auto; }
+  aside { border-right: 0; border-bottom: 1px solid var(--line); max-height: 30vh; }
+  .dlg { grid-template-columns: 1fr; }
+  #viewer { min-height: 300px; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+</head>
+<body>
+<header>
+  <h1>Synty Explorer</h1>
+  <input id="q" type="search" placeholder="Search: barrel, soldier, tag:harbor-city, pack:city…" autocomplete="off" aria-label="Search assets">
+  <span id="count"></span>
+</header>
+
+<aside>
+  <h2>Category</h2><div id="fCat"></div>
+  <h2>Pack</h2><div id="fPack"></div>
+  <h2>Size</h2>
+  <button class="facet" id="fMeasured" aria-pressed="false">Only measured assets</button>
+  <h2>Search tips</h2>
+  <p class="hint">Typos are fine. Combine filters: <code>crate pack:military</code>, <code>cat:character</code>, <code>cat:animation</code>, <code>tag:harbor-city</code>.<br>Pin ★ assets to compare their height in the lineup below.</p>
+</aside>
+
+<main>
+  <div id="grid" role="list"></div>
+  <button id="more" hidden>Show more</button>
+</main>
+
+<details id="lineup" open>
+  <summary>Lineup <span id="lineupCount" class="hint"></span>
+    <span class="tools"><button id="addChars" type="button">Add one character per pack</button><button id="clearLineup" type="button">Clear</button></span>
+  </summary>
+  <div id="lineupEmpty">Pin assets with ★ to line them up on a 1 m grid. Bars outlined in red are more than 20% off the median height.</div>
+  <div id="stage" hidden></div>
+</details>
+
+<dialog id="dlg">
+  <button class="btn close" id="dlgClose" aria-label="Close">✕</button>
+  <div class="dlg">
+    <div id="viewer"><button class="btn" id="fsBtn" type="button" hidden>Full screen</button><div id="viewerMsg"></div><div id="anim" hidden><select id="animSel"></select><button class="btn" id="playBtn" type="button">Pause</button><input type="range" id="scrub" min="0" max="1" step="0.001" value="0" aria-label="Animation timeline"><span id="animTime"></span><label id="inPlaceLbl" class="hint"><input type="checkbox" id="inPlace" checked> In place</label></div><div id="legend" hidden><i></i>1.8 m person, for scale · grid squares are 1 m</div></div>
+    <div class="info" id="info"></div>
+  </div>
+</dialog>
+
+<div id="drop"><div class="box">
+  <h2>Load an index</h2>
+  <p class="hint">Run <code>python -m synty_explorer serve</code> for the full experience, or drop an <code>index.json</code> here to browse names and sizes.</p>
+  <input type="file" id="file" accept=".json">
+</div></div>
+
+<script type="module">
+const $ = s => document.querySelector(s);
+const state = { assets: [], packs: [], skeletons: {}, cat: null, pack: null, measured: false, shown: 0, results: [], lineup: [], hasServer: true };
+const PAGE = 240;
+const CAT_GLYPH = { Prop:'P', Building:'B', Character:'C', Weapon:'W', Vehicle:'V', Environment:'E', Item:'I', FX:'FX', Attachment:'A', Generic:'G', Animation:'▶' };
+
+// ------------------------------------------------ search (same scoring as the Python port)
+const split = s => (s||'').toLowerCase().split(/[ _\-/\\.]+/).filter(Boolean);
+function wordScore(w, t) {
+  if (w.startsWith(t)) return 80;
+  if (w.length === t.length) { const d=[...w].map((c,i)=>c!==t[i]?i:-1).filter(i=>i>=0);
+    if (d.length===2 && d[1]===d[0]+1 && w[d[0]]===t[d[1]] && w[d[1]]===t[d[0]]) return 72; }
+  if (t.length >= 3) { let i=0; for (const c of w) if (i<t.length && c===t[i]) i++; if (i===t.length) return 55-Math.min(20,w.length-t.length); }
+  const dist = lev(w,t), allowed = t.length>=6?2:t.length>=4?1:0;
+  return dist<=allowed ? 50-dist*8 : -1;
+}
+function lev(a,b){ let p=[...Array(b.length+1).keys()]; for(let i=1;i<=a.length;i++){ const c=[i]; for(let j=1;j<=b.length;j++) c[j]=Math.min(c[j-1]+1,p[j]+1,p[j-1]+(a[i-1]!==b[j-1])); p=c; } return p[b.length]; }
+function parse(q){ const o={terms:[],tag:[],pack:[],cat:[],kind:[]};
+  for (const tok of q.split(/\s+/).filter(Boolean)) { const m = tok.match(/^(tag|pack|cat|kind):(.+)$/i);
+    if (m) o[m[1].toLowerCase()].push(m[2].toLowerCase()); else o.terms.push(...split(tok)); } return o; }
+function score(a, terms){ const text = a._s, words = a._w; let total=0;
+  for (const t of terms){ if (text.includes(t)){ total += text.startsWith(t)?120:90; continue; }
+    let best=-1; for (const w of words){ const s=wordScore(w,t); if (s>best) best=s; } if (best<0) return -1; total+=best; } return total; }
+function run(){
+  const q = parse($('#q').value);
+  let pool = state.assets.filter(a =>
+    (!state.cat || a.category===state.cat) && (!state.pack || a.pack===state.pack) && (!state.measured || a.height_m!=null) &&
+    q.tag.every(t => (a.tags||[]).includes(t)) && q.pack.every(p => a.pack.toLowerCase().includes(p)) &&
+    q.cat.every(c => a.category.toLowerCase()===c) && q.kind.every(k => a.kind===k));
+  if (q.terms.length){ pool = pool.map(a=>[score(a,q.terms),a]).filter(x=>x[0]>=0).sort((x,y)=>y[0]-x[0]||x[1].display_name.localeCompare(y[1].display_name)).map(x=>x[1]); }
+  state.results = pool; state.shown = 0; $('#grid').replaceChildren(); more();
+  $('#count').textContent = `${pool.length.toLocaleString()} of ${state.assets.length.toLocaleString()}`;
+  if (!pool.length) $('#grid').innerHTML = `<div class="empty">No assets match. Remove a filter or try a shorter word.</div>`;
+}
+// ------------------------------------------------ grid
+const fmtH = h => h==null ? '' : `${h.toFixed(2)} m`;
+const shortPack = p => p.replace(/^(Polygon|Animation)_?/i, '').replace(/([a-z])([A-Z])/g, '$1 $2');
+const fmtS = s => s==null ? '' : `${s.toFixed(1)} s`;
+const enc = id => id.split('/').map(encodeURIComponent).join('/');
+function card(a){
+  const el = document.createElement('div'); el.className='card'; el.role='listitem'; el.tabIndex=0;
+  el.style.setProperty('--cat', `var(--cat-${a.category}, var(--cat-Other))`);
+  const thumb = a.has_thumb && state.hasServer ? `<img loading="lazy" alt="" src="/file/thumb/${enc(a.id)}">`
+    : a.kind === 'animation' ? `<span class="clip"><b>▶</b><small>${[a.rig_family, a.phase || (a.root_motion ? 'Root motion' : a.additive ? 'Additive' : '')].filter(Boolean).join(' / ')}</small></span>`
+    : `<span class="glyph">${CAT_GLYPH[a.category]||'?'}</span>`;
+  el.innerHTML = `<div class="thumb">${thumb}</div><div class="meta"><span class="name"></span><span class="sub"><span></span><span>${a.kind==='animation' ? fmtS(a.duration_s) : fmtH(a.height_m)}</span></span></div>
+    <button ${a.kind==='animation'?'hidden ':''}class="pin" type="button" aria-label="Pin to lineup" aria-pressed="${state.lineup.includes(a.id)}">★</button>`;
+  el.querySelector('.name').textContent = a.display_name;
+  el.querySelector('.sub span').textContent = shortPack(a.pack);
+  el.querySelector('.pin').onclick = e => { e.stopPropagation(); togglePin(a.id); e.currentTarget.setAttribute('aria-pressed', state.lineup.includes(a.id)); };
+  el.onclick = () => openDetail(a);
+  el.onkeydown = e => { if (e.key==='Enter') openDetail(a); };
+  return el;
+}
+function more(){ const frag=document.createDocumentFragment(); const next=state.results.slice(state.shown, state.shown+PAGE);
+  next.forEach(a=>frag.appendChild(card(a))); $('#grid').appendChild(frag); state.shown+=next.length; $('#more').hidden = state.shown>=state.results.length; }
+$('#more').onclick = more;
+new IntersectionObserver(es => { if (es[0].isIntersecting && !$('#more').hidden) more(); }, { root: $('main') }).observe($('#more'));
+
+// ------------------------------------------------ facets
+function facets(){
+  const cats = {}; state.assets.forEach(a => cats[a.category]=(cats[a.category]||0)+1);
+  const mk = (box, items, key) => { box.replaceChildren(...items.map(([v,n]) => { const b=document.createElement('button'); b.className='facet';
+    b.setAttribute('aria-pressed', state[key]===v);
+    b.innerHTML = (key==='cat'?`<span class="swatch" style="background:var(--cat-${v},var(--cat-Other))"></span>`:'')+`<span></span><span class="n">${n}</span>`;
+    b.children[key==='cat'?1:0].textContent = key==='pack' ? v.replace(/^Polygon/i,'Polygon ') : v;
+    b.onclick = () => { state[key] = state[key]===v ? null : v; facets(); run(); }; return b; })); };
+  mk($('#fCat'), Object.entries(cats).sort((a,b)=>b[1]-a[1]), 'cat');
+  mk($('#fPack'), state.packs.map(p=>[p.name,p.count]), 'pack');
+}
+$('#fMeasured').onclick = e => { state.measured=!state.measured; e.currentTarget.setAttribute('aria-pressed', state.measured); run(); };
+let t; $('#q').oninput = () => { clearTimeout(t); t=setTimeout(run, 120); };
+addEventListener('keydown', e => { if (e.key==='/' && document.activeElement!==$('#q')) { e.preventDefault(); $('#q').focus(); } });
+
+// ------------------------------------------------ lineup
+const byId = id => state.assets.find(a=>a.id===id);
+function togglePin(id){ const i=state.lineup.indexOf(id); i>=0 ? state.lineup.splice(i,1) : state.lineup.push(id); drawLineup(); }
+function drawLineup(){
+  const items = state.lineup.map(byId).filter(Boolean);
+  $('#lineupCount').textContent = items.length ? `${items.length} pinned` : '';
+  $('#lineupEmpty').hidden = !!items.length; const st=$('#stage'); st.hidden = !items.length; if (!items.length) return;
+  const measured = items.filter(a=>a.height_m!=null).map(a=>a.height_m).sort((a,b)=>a-b);
+  const median = measured[Math.floor(measured.length/2)];
+  const maxH = Math.max(2, ...measured) * 1.15, px = 220 / maxH;
+  st.replaceChildren();
+  for (let m=0; m<=maxH; m+= maxH>12?5:maxH>5?2:0.5){ const l=document.createElement('div'); l.className='mline'; l.style.bottom=`${m*px}px`; l.innerHTML=`<span>${m} m</span>`; st.appendChild(l); }
+  for (const a of items){
+    const f=document.createElement('div'); f.className='fig'; f.style.setProperty('--cat', `var(--cat-${a.category}, var(--cat-Other))`);
+    const h = a.height_m, w = a.size_m ? Math.max(a.size_m.x, a.size_m.z) : null;
+    if (h!=null && median && (h/median<0.8 || h/median>1.25) && measured.length>1) f.classList.add('out');
+    f.innerHTML = `<div class="lbl"><b></b>${h!=null?fmtH(h):'not measured'}</div><div class="bar"></div><button class="x" aria-label="Remove">✕</button>`;
+    f.querySelector('b').textContent = a.display_name;
+    const bar=f.querySelector('.bar'); bar.style.height = `${Math.max(3, (h??0.05)*px)}px`; bar.style.width = `${Math.max(14, Math.min(160, (w??0.5)*px))}px`;
+    if (h==null) bar.style.opacity=.3;
+    f.querySelector('.x').onclick = () => togglePin(a.id);
+    f.style.minWidth = '90px'; st.appendChild(f);
+  }
+}
+$('#clearLineup').onclick = e => { e.preventDefault(); state.lineup=[]; drawLineup(); run(); };
+$('#addChars').onclick = e => { e.preventDefault();
+  for (const p of state.packs){ const c = state.assets.find(a => a.pack===p.name && a.category==='Character' && a.height_m!=null) || state.assets.find(a => a.pack===p.name && a.category==='Character');
+    if (c && !state.lineup.includes(c.id)) state.lineup.push(c.id); }
+  drawLineup(); run(); };
+
+// ------------------------------------------------ detail + 3D viewer
+let three = null;
+async function loadThree(){
+  if (three) return three;
+  const THREE = await import('three');
+  const { FBXLoader } = await import('three/addons/loaders/FBXLoader.js');
+  const { OrbitControls } = await import('three/addons/controls/OrbitControls.js');
+  const { TGALoader } = await import('three/addons/loaders/TGALoader.js');
+  three = { THREE, FBXLoader, OrbitControls, TGALoader }; return three;
+}
+let viewerCleanup = null;
+const compatibleRigs = clip => (state.skeletons[clip.skeleton_id]?.compatible || []).map(byId).filter(x => x && x.has_model);
+const clipsFor = model => state.assets.filter(c => c.kind==='animation' && c.has_model && (state.skeletons[c.skeleton_id]?.compatible || []).includes(model.id));
+const clipCache = new Map();
+function loadClip(id){
+  if (!clipCache.has(id)) clipCache.set(id, loadThree().then(({ FBXLoader }) => new FBXLoader().loadAsync(`/file/model/${enc(id)}`)).then(o => o.animations[0]));
+  return clipCache.get(id);
+}
+
+async function openDetail(a){
+  const isClip = a.kind === 'animation';
+  const dl = isClip ? [
+      ['Category', 'Animation' + (a.motion ? ` (${a.motion})` : '')], ['Pack', a.pack], ['Folder', a.group||'—'],
+      ['Rig', a.rig_family||'—'], ['Body', a.body||'—'], ['Phase', a.phase||'—'],
+      ['Duration', a.duration_s!=null ? fmtS(a.duration_s) : '—'], ['Bones', a.bone_count ?? '—'],
+      ['Plays on', `${(state.skeletons[a.skeleton_id]?.compatible||[]).length} rigged models`], ['FBX', a.fbx||'—']]
+    : [['Category', a.category + (a.rigged ? ' (rigged)' : '')], ['Pack', a.pack], ['Folder', a.group||'—'],
+      ['Height', a.height_m!=null ? fmtH(a.height_m) : 'not measured'],
+      ['Size', a.size_m ? `${a.size_m.x.toFixed(2)} × ${a.size_m.y.toFixed(2)} × ${a.size_m.z.toFixed(2)} m` : '—'],
+      ['FBX', a.fbx||'—'], ['Texture', a.texture||'—'], ['Materials', (a.materials||[]).join(', ')||'—'], ['Tags', (a.tags||[]).join(', ')||'—']];
+  if (!isClip && a.rigged) dl.splice(5, 0, ['Animations', `${clipsFor(a).length} compatible clips`]);
+  if (a.error) dl.push(['Note', a.error]);
+  const info=$('#info'); info.innerHTML = `<h3></h3><div class="path"></div><dl></dl><div class="row"><button class="btn primary" id="pinBtn"></button><button class="btn" id="copyBtn">Copy path</button><button class="btn" id="copyId">Copy id</button></div>`;
+  info.querySelector('h3').textContent = a.display_name; info.querySelector('.path').textContent = a.path;
+  info.querySelector('dl').replaceChildren(...dl.flatMap(([k,v]) => { const dt=document.createElement('dt'), dd=document.createElement('dd'); dt.textContent=k; dd.textContent=v; return [dt,dd]; }));
+  const pinBtn = $('#pinBtn'); pinBtn.hidden = isClip;
+  const label = () => pinBtn.textContent = state.lineup.includes(a.id) ? 'Remove from lineup' : 'Add to lineup';
+  label(); pinBtn.onclick = () => { togglePin(a.id); label(); };
+  $('#copyBtn').onclick = () => navigator.clipboard?.writeText(a.path); $('#copyId').onclick = () => navigator.clipboard?.writeText(a.id);
+  $('#dlg').showModal();
+
+  const msg = $('#viewerMsg'), sel = $('#animSel');
+  resetViewer();
+  if (!a.has_model || !state.hasServer){ msg.textContent = a.has_model ? 'Start the local server to preview models.' : 'No model extracted for this asset. Index with a cache folder to enable 3D preview.'; return; }
+
+  // Build the animation picker: a clip chooses its character, a rigged model chooses its clip.
+  let model = a, clip = null;
+  if (isClip){
+    const rigs = compatibleRigs(a); clip = a;
+    model = byId(a.preview_rig)?.has_model ? byId(a.preview_rig) : rigs[0] || null;
+    sel.replaceChildren(...(rigs.length ? rigs : [null]).map(r => new Option(r ? `On: ${r.display_name} (${r.pack.replace(/^Polygon/i,'')})` : 'Skeleton only (no matching character indexed)', r ? r.id : '')));
+    sel.value = model ? model.id : '';
+    sel.onchange = () => render(byId(sel.value) || null, clip);
+  } else if (a.rigged){
+    const clips = clipsFor(a);
+    if (clips.length){
+      const groups = {}; clips.forEach(c => (groups[`${c.rig_family||''} ${c.body||''}`.trim()] ??= []).push(c));
+      sel.replaceChildren(new Option('Bind pose (no animation)', ''), ...Object.entries(groups).map(([g, cs]) => {
+        const og = document.createElement('optgroup'); og.label = g || 'Clips'; cs.forEach(c => og.appendChild(new Option(c.display_name, c.id))); return og; }));
+      sel.value = '';
+      sel.onchange = () => render(a, byId(sel.value) || null);
+    } else sel.replaceChildren();
+  } else sel.replaceChildren();
+  await render(model, clip);
+}
+
+function resetViewer(){
+  viewerCleanup?.(); viewerCleanup = null;
+  $('#viewer').querySelector('canvas')?.remove();
+  $('#legend').hidden = true; $('#fsBtn').hidden = true; $('#anim').hidden = true;
+}
+
+let renderSeq = 0, lastRender = null;
+// Root-motion clips: pin the top-most bone's horizontal movement so the character stays on the grid.
+function inPlaceClip(THREE, clip, obj){
+  const c = clip.clone();
+  for (const t of c.tracks){
+    if (!t.name.endsWith('.position')) continue;
+    const node = THREE.PropertyBinding.findNode(obj, THREE.PropertyBinding.parseTrackName(t.name).nodeName);
+    if (!node || node.parent?.isBone) continue;
+    const v = t.values; for (let i = 0; i < v.length; i += 3){ v[i] = v[0]; v[i+2] = v[2]; }
+  }
+  return c;
+}
+async function render(modelAsset, clipAsset){
+  const seq = ++renderSeq; lastRender = [modelAsset, clipAsset];
+  const msg = $('#viewerMsg'), box = $('#viewer');
+  resetViewer(); msg.classList.remove('note'); msg.textContent = clipAsset ? 'Loading animation…' : 'Loading model…';
+  try {
+    const { THREE, FBXLoader, OrbitControls, TGALoader } = await loadThree();
+    const src = modelAsset || clipAsset;
+    const obj = await new FBXLoader().loadAsync(`/file/model/${enc(src.id)}`);
+    if (seq !== renderSeq) return;  // a newer selection replaced this one
+    let hasMesh = false;
+    obj.traverse(o => { if (o.isMesh) { hasMesh = true; if (o.isSkinnedMesh) o.frustumCulled = false; } });
+    if (modelAsset?.has_texture){
+      const tex = await (/\.tga$/i.test(modelAsset.texture) ? new TGALoader() : new THREE.TextureLoader()).loadAsync(`/file/texture/${enc(modelAsset.id)}`);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      const mk = () => new THREE.MeshStandardMaterial({ map: tex, roughness: .85 });
+      obj.traverse(o => { if (o.isMesh) o.material = Array.isArray(o.material) ? o.material.map(mk) : mk(); });
+    } else if (modelAsset?.rigged){
+      const mk = () => new THREE.MeshStandardMaterial({ color: 0xb9c2ce, roughness: .8 });
+      obj.traverse(o => { if (o.isMesh) o.material = Array.isArray(o.material) ? o.material.map(mk) : mk(); });
+    }
+
+    const w = box.clientWidth, h = box.clientHeight;
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true }); renderer.setSize(w, h, false); renderer.setPixelRatio(devicePixelRatio);
+    const scene = new THREE.Scene(); const cam = new THREE.PerspectiveCamera(40, w/h, 0.01, 1000);
+    scene.add(new THREE.HemisphereLight(0xffffff, 0x445566, 2.2)); const dir = new THREE.DirectionalLight(0xffffff, 1.4); dir.position.set(3,6,4); scene.add(dir);
+
+    // Size: meshes use the indexed height; a bare skeleton is scaled to 1.75 m and drawn as lines.
+    obj.updateMatrixWorld(true);
+    let b = new THREE.Box3();
+    if (hasMesh) b.setFromObject(obj);
+    else obj.traverse(o => { if (o.isBone) b.expandByPoint(o.getWorldPosition(new THREE.Vector3())); });
+    let s = b.getSize(new THREE.Vector3());
+    const target = modelAsset?.height_m ?? (hasMesh ? null : 1.75);
+    const k = target ? target / Math.max(s.y, 1e-6) : 1 / Math.max(s.x, s.y, s.z, 1e-6);
+    obj.scale.multiplyScalar(k); obj.updateMatrixWorld(true);
+    b = new THREE.Box3(); if (hasMesh) b.setFromObject(obj); else obj.traverse(o => { if (o.isBone) b.expandByPoint(o.getWorldPosition(new THREE.Vector3())); });
+    s = b.getSize(new THREE.Vector3());
+    obj.position.sub(new THREE.Vector3((b.min.x+b.max.x)/2, b.min.y, (b.min.z+b.max.z)/2)); scene.add(obj);
+    if (!hasMesh) { const sk = new THREE.SkeletonHelper(obj); sk.material.linewidth = 2; scene.add(sk); }
+    const span = Math.max(4, Math.ceil(Math.max(s.x, s.z) + 2)); scene.add(new THREE.GridHelper(span, span, 0x888888, 0xbbbbbb));
+    const ref = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 1.8, 16), new THREE.MeshStandardMaterial({ color: 0xf2b632, transparent: true, opacity: .55 }));
+    ref.position.set(-(s.x/2 + 0.6), 0.9, 0); scene.add(ref);
+    const r = Math.max(s.x, s.y, s.z, 1.8); cam.position.set(r*1.4, r*0.9, r*1.8);
+    const ctl = new OrbitControls(cam, renderer.domElement); ctl.target.set(0, Math.max(s.y, 1.8)/2, 0); ctl.update();
+
+    // Animation
+    let mixer = null, action = null, clip = null, playing = true, note = '';
+    if (clipAsset){
+      clip = await loadClip(clipAsset.id);
+      if (seq !== renderSeq) { renderer.dispose(); return; }
+      if (!clip) note = 'This file has no animation data.';
+      else {
+        const names = clip.tracks.map(t => THREE.PropertyBinding.parseTrackName(t.name).nodeName);
+        const found = names.filter(n => THREE.PropertyBinding.findNode(obj, n)).length / Math.max(names.length, 1);
+        if (found < 0.5) note = `Skeleton mismatch: only ${Math.round(found*100)}% of the clip's bones exist on this model.`;
+        else {
+          if (clipAsset.root_motion && $('#inPlace').checked) clip = inPlaceClip(THREE, clip, obj);
+          mixer = new THREE.AnimationMixer(obj); action = mixer.clipAction(clip); action.play();
+          if (clipAsset.additive) note = 'Additive layer: in a game it is blended on top of another animation.';
+        }
+      }
+    }
+    const anim = $('#anim'), sel = $('#animSel'), playBtn = $('#playBtn'), scrub = $('#scrub'), time = $('#animTime');
+    anim.hidden = !(sel.options.length || action);
+    playBtn.hidden = scrub.hidden = time.hidden = !action;
+    $('#inPlaceLbl').hidden = !(action && clipAsset?.root_motion);
+    playBtn.textContent = 'Pause';
+    playBtn.onclick = () => { playing = !playing; playBtn.textContent = playing ? 'Pause' : 'Play'; };
+    scrub.oninput = () => { if (!action) return; playing = false; playBtn.textContent = 'Play'; action.time = scrub.value * clip.duration; mixer.update(0); };
+
+    box.appendChild(renderer.domElement); msg.textContent = note; msg.classList.toggle('note', !!note); $('#legend').hidden = false; $('#fsBtn').hidden = false;
+    const ro = new ResizeObserver(() => { const w2 = box.clientWidth, h2 = box.clientHeight; if (!w2 || !h2) return; renderer.setSize(w2, h2, false); cam.aspect = w2/h2; cam.updateProjectionMatrix(); }); ro.observe(box);
+    renderer.domElement.ondblclick = toggleFs;
+    const clock = new THREE.Clock(); let live = true;
+    (function loop(){ if (!live) return; const dt = clock.getDelta();
+      if (mixer && playing) mixer.update(dt);
+      if (action && clip.duration) { const t = action.time % clip.duration; if (playing) scrub.value = t / clip.duration; time.textContent = `${t.toFixed(1)} / ${clip.duration.toFixed(1)} s`; }
+      renderer.render(scene, cam); requestAnimationFrame(loop); })();
+    viewerCleanup = () => { live = false; mixer?.stopAllAction(); ro.disconnect(); renderer.dispose(); };
+  } catch (err) { msg.textContent = `Could not load this ${clipAsset ? 'animation' : 'model'}: ${err.message}`; }
+}
+$('#inPlace').onchange = () => lastRender && render(...lastRender);
+function toggleFs(){ document.fullscreenElement ? document.exitFullscreen() : $('#viewer').requestFullscreen?.(); }
+$('#fsBtn').onclick = toggleFs;
+document.addEventListener('fullscreenchange', () => { $('#fsBtn').textContent = document.fullscreenElement ? 'Exit full screen' : 'Full screen'; });
+$('#dlgClose').onclick = () => $('#dlg').close();
+$('#dlg').addEventListener('close', () => { viewerCleanup?.(); viewerCleanup=null; });
+
+// ------------------------------------------------ boot
+function ingest(idx){
+  state.assets = idx.assets.map(a => { const s = [a.display_name,a.name,a.category,a.group,a.pack,(a.tags||[]).join(' ')].join(' ').toLowerCase(); return Object.assign(a, { _s: s, _w: split(s) }); });
+  state.packs = idx.packs; state.skeletons = idx.skeletons || {}; facets(); run(); drawLineup(); $('#drop').classList.remove('on');
+}
+if (window.SYNTY_INDEX) { state.hasServer = false; ingest(window.SYNTY_INDEX); }
+else try { const r = await fetch('/api/index'); if (!r.ok) throw 0; ingest(await r.json()); }
+catch { state.hasServer = false; $('#drop').classList.add('on');
+  $('#file').onchange = async e => ingest(JSON.parse(await e.target.files[0].text()));
+  addEventListener('dragover', e => e.preventDefault());
+  addEventListener('drop', async e => { e.preventDefault(); const f=e.dataTransfer.files[0]; if (f) ingest(JSON.parse(await f.text())); }); }
+</script>
+</body>
+</html>
